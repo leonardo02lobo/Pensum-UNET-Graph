@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/*
+ * D7 — Tokens de color compartidos entre Tailwind y la escena 3D.
+ *
+ * Tailwind no puede estilizar WebGL. Estas variables son la ÚNICA definición
+ * de cada color: Tailwind genera utilidades (`bg-sector-matematica`) y el
+ * render 3D las lee con getComputedStyle al montar (ver src/view/tokens.ts).
+ * Cambiar un valor aquí mueve la leyenda 2D y los nodos 3D a la vez.
+ */
+/*
+ * `static` es obligatorio: Tailwind v4 descarta los tokens de @theme que no se
+ * usan como clase utilitaria, y los colores de sector solo los lee el render
+ * 3D con getComputedStyle. Sin esto las variables no llegan al CSS compilado y
+ * el puente Tailwind↔WebGL queda inerte, cayendo en los valores de respaldo.
+ */
+@theme static {
+  /* Los ocho sectores de conocimiento (D5). El ancho de wedge lo da el
+     número de materias; el color solo los identifica. */
+  --color-sector-matematica: #fbbf24;
+  --color-sector-formacion: #60a5fa;
+  --color-sector-programacion: #22d3ee;
+  --color-sector-sistemas: #34d399;
+  --color-sector-ciencias: #fb7185;
+  --color-sector-datos: #c084fc;
+  --color-sector-grado: #f472b6;
+  /* Algo más apagado que el lima puro: era el único token por encima del
+     umbral del bloom, y su halo leía como un énfasis no buscado. */
+  --color-sector-gestion: #94cc2e;
+  /* Naranja: sus vecinos en el orden cíclico son el rosa de `grado` y el azul
+     de `formacion`, así que no compite con ninguno. */
+  --color-sector-deportiva: #fb923c;
+
+  /* Materias sin sector (las cuatro Electivas) — órbita libre. */
+  --color-sector-none: #94a3b8;
+
+  /* Fondo y cromo. */
+  --color-void: #05060a;
+  --color-void-soft: #0b0e17;
+  --color-hairline: #1e2537;
+
+  /* Compuertas por créditos (D2): translúcido y desaturado. */
+  --color-gate: #64748b;
+
+  /* Aristas. */
+  --color-edge-intra: #334155;
+  --color-edge-cross: #64748b;
+  --color-edge-correq: #475569;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-void);
+  color: #e2e8f0;
+  overflow: hidden;
+}
