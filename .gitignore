@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+*.local
+
+# Artefactos de compilación de TypeScript
+*.tsbuildinfo
+
+# Capturas y volcados de Playwright MCP
+.playwright-mcp/
