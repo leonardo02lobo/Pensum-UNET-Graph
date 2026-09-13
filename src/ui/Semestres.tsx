@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { formatearUmbral } from '../data/types'
 import type { PensumGraph } from '../model/graph'
 import { colorDeSector, leerTokens } from '../view/tokens'
 
@@ -72,6 +73,13 @@ export function Semestres({ grafo, activo, onElegir, onIr, compacto = false }: P
                       }}
                     />
                     <span className="truncate text-[12px] text-slate-300">{m.nombre}</span>
+                    {/* El punto distingue compuerta de sector solo por color.
+                        Quien no lo perciba necesita el dato en texto. */}
+                    {m.gate !== null && (
+                      <span className="ml-auto shrink-0 text-[10px] text-slate-500">
+                        {formatearUmbral(m.gate)}
+                      </span>
+                    )}
                   </button>
                 </li>
               )

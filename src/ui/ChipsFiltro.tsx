@@ -103,8 +103,11 @@ export function ChipsFiltro({
           Limpiar todo
         </button>
       )}
-      <span className="px-1 text-[10px] text-slate-600" title="La tecla Escape limpia selección y filtros">
-        Esc
+      <span className="flex items-center gap-1 px-1 text-[10px] text-slate-500">
+        <kbd className="rounded border border-hairline bg-white/5 px-1 py-0.5 font-sans">
+          Esc
+        </kbd>
+        limpia todo
       </span>
     </div>
   )

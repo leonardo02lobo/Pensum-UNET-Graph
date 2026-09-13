@@ -283,10 +283,74 @@ aristas**:
 
 | Tecla | Acción |
 |---|---|
+| `/` · `⌘K` | Lleva el foco al buscador |
 | `←` | La primera prelación: lo que hace falta antes |
 | `→` | Lo primero que se desbloquea |
 | `↑` `↓` | Rota entre las materias hermanas — las que comparten el mismo requisito |
 | `Esc` | Limpia selección y filtros; si el foco está en un campo, solo lo abandona |
+
+Esta tabla ya no vive solo aquí: el botón **?** junto a los controles de cámara la
+muestra en la propia interfaz. Un atajo que nadie descubre no existe.
+
+### El buscador se opera sin soltar el teclado
+
+Era el camino más rápido de la app y estaba hecho de ocho botones que solo respondían
+al clic: se escribía con el teclado y se elegía con el ratón.
+
+```
+  ┌─────────────────────────────┐
+  │ progra                      │ ← el foco NUNCA sale del campo
+  ├─────────────────────────────┤
+  │ ● Programación I       S3   │
+  │ ● Programación II      S4   │ ← activo (aria-activedescendant)
+  └─────────────────────────────┘
+   ↓ ↑  mueven el activo, con tope en los extremos
+   Enter elige · Esc cierra la lista
+```
+
+Mover el foco de verdad a los resultados obligaría a devolverlo al campo en cada
+pulsación y rompería la escritura. El tope en los extremos, en vez de dar la vuelta:
+con ocho resultados como máximo, dar la vuelta desorienta más de lo que ahorra.
+
+**`Esc` tiene dos capas**: el primero cierra la lista de resultados sin tocar el grafo;
+solo un segundo `Esc` limpia selección y filtros. De lo más local a lo más global, que
+es la convención de cualquier combo.
+
+El comportamiento vive en `ui/useComboMaterias.ts`, compartido por el buscador del grafo
+y el selector de la calculadora — antes eran dos copias.
+
+### Movimiento reducido
+
+Con `prefers-reduced-motion` activo, la aplicación **no inicia** movimiento: la rotación
+automática no arranca sola y las transiciones de cámara se resuelven como un salto, con
+el mismo encuadre final. Pero el control de rotación sigue ahí y funciona: la preferencia
+limita lo que la app hace por su cuenta, no lo que el usuario pide. Tratarla como una
+incapacidad sería otro error.
+
+El bloom se mantiene. Es un efecto estático, no movimiento, y apagarlo cambiaría la
+identidad de la escena sin resolver ninguna molestia.
+
+### El lienzo delega en la lista
+
+La escena es un `<canvas>`: para un lector de pantalla no existe. Construir un árbol
+paralelo de 68 nodos con sus aristas sería reconstruir la lista dentro del lienzo, así
+que el lienzo **delega explícitamente**: se anuncia con su nombre y qué codifican radio y
+ángulo, y ofrece un salto a `#/plan`, que ya es mejor en ese medio.
+
+Los cambios de selección se anuncian de forma no interruptiva y **coalescida**: recorrer
+seis prelaciones con las flechas produce un anuncio, no seis. Importa dónde acabaste, no
+cada paso intermedio — y un anuncio mal puesto es peor que ninguno.
+
+### El anillo de foco
+
+Una sola definición en `index.css`, como los tokens de color. `:focus-visible` y no
+`:focus`, para que aparezca al tabular y no al clicar. `#f1f5f9` da 18,5:1 contra el
+fondo; se descartó `sky-300`, que tiene contraste **1,00** contra el amarillo de
+`matematica` —misma luminancia— y se perdería justo donde hace falta.
+
+No transiciona. La utilidad `transition` de Tailwind incluye `outline-color`, así que el
+anillo nacía del color del texto del control y tardaba 150 ms en leerse: un indicador de
+foco que hay que esperar a ver no cumple su función.
 
 Sin selección, la primera flecha entra por el principio del orden topológico. El teclado
 **no secuestra** la escritura: mientras el foco esté en un `input`, `textarea` o elemento

@@ -77,6 +77,13 @@ interface Props {
    *  seleccionar: seguir girando mientras alguien manipula la escena es
    *  pelearse con él. */
   readonly onIntervenir: () => void;
+  /** El sistema pide movimiento reducido: las transiciones de cámara se
+   *  resuelven como un salto, sin recorrido. El encuadre final es el mismo. */
+  readonly movimientoReducido: boolean;
+  /** Nombre de la materia seleccionada, para anunciarla. `null` si no hay. */
+  readonly nombreSeleccion: string | null;
+  /** Lleva a la vista de lista, el equivalente textual de la escena. */
+  readonly onVerLista: () => void;
   readonly onHover: (id: string | null) => void;
   readonly onSelect: (id: string | null) => void;
   readonly orden: OrdenCamara | null;
@@ -196,6 +203,9 @@ export function GrafoOrbital({
   girando,
   franjaPanel,
   onIntervenir,
+  movimientoReducido,
+  nombreSeleccion,
+  onVerLista,
   onHover,
   onSelect,
   orden,
@@ -448,19 +458,22 @@ export function GrafoOrbital({
     const fg = fgRef.current;
     if (!fg) return;
     const d = distanciaCamara();
+    // Con movimiento reducido el encuadre final es idéntico; lo que desaparece
+    // es el trayecto. `cameraPosition` con 0 ms coloca la cámara de golpe.
+    const ms = (normal: number) => (movimientoReducido ? 0 : normal);
 
     if (orden.tipo === "inicial") {
       fg.cameraPosition(
         { x: 0, y: d * 0.866, z: d * 0.5 },
         { x: 0, y: 0, z: 0 },
-        700,
+        ms(700),
       );
       return;
     }
     if (orden.tipo === "cenital") {
       // Casi a plomo: la vista donde brazos y anillos se leen sin deformación,
       // a costa de perder el relieve.
-      fg.cameraPosition({ x: 0, y: d, z: 0.001 }, { x: 0, y: 0, z: 0 }, 700);
+      fg.cameraPosition({ x: 0, y: d, z: 0.001 }, { x: 0, y: 0, z: 0 }, ms(700));
       return;
     }
 
@@ -478,9 +491,9 @@ export function GrafoOrbital({
         z: nodo.z + (nodo.z / largo) * s,
       },
       { x: nodo.x, y: nodo.y, z: nodo.z },
-      900,
+      ms(900),
     );
-  }, [orden, datos, distanciaCamara]);
+  }, [orden, datos, distanciaCamara, movimientoReducido]);
 
   // ── Etiquetas ─────────────────────────────────────────────────────────────
   const items = useMemo<ItemEtiqueta[]>(() => {
@@ -594,10 +607,25 @@ export function GrafoOrbital({
     return (l.tipo === "cruce-sector" ? 1.1 : 0.6) * u;
   };
 
+  // Coalescencia: solo se anuncia cuando la selección se queda quieta. Sin
+  // esto, recorrer rápido una cadena encola un anuncio por pulsación y el
+  // recorrido se vuelve inusable — justo la función que la app hizo bien.
+  const [anuncioSeleccion, setAnuncioSeleccion] = useState("");
+  useEffect(() => {
+    if (nombreSeleccion === null) {
+      setAnuncioSeleccion("");
+      return;
+    }
+    const t = setTimeout(() => setAnuncioSeleccion(nombreSeleccion), 400);
+    return () => clearTimeout(t);
+  }, [nombreSeleccion]);
+
   return (
     <div
       ref={contenedor}
       className="relative h-full w-full"
+      role="application"
+      aria-label={`Grafo del pensum: ${grafo.materias.size} materias situadas por semestre (radio) y sector (ángulo), con sus prelaciones`}
       // Orbitar y elegir son gestos distintos. `onNodeClick` dispara al soltar
       // sin más, así que un arrastre que termina sobre un nodo lo seleccionaría
       // — y como la cámara acaba de moverse, el usuario no sabría por qué se
@@ -669,6 +697,29 @@ export function GrafoOrbital({
         items={items}
         franja={franjaPanel}
       />
+
+      {/*
+        La escena es un `<canvas>`: para un lector de pantalla no existe. En vez
+        de simular un árbol paralelo de 68 nodos —que sería reconstruir la lista
+        dentro del lienzo— se DELEGA explícitamente en la vista de lista, que ya
+        existe y es mejor en ese medio (design.md, D5).
+      */}
+      <button
+        type="button"
+        onClick={onVerLista}
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-1/2 focus:z-50 focus:-translate-x-1/2 focus:rounded-lg focus:border focus:border-hairline focus:bg-void-soft focus:px-3 focus:py-2 focus:text-sm focus:text-slate-200"
+      >
+        Ver el pensum como lista navegable
+      </button>
+
+      {/*
+        El anuncio es `polite` y no interrumpe: con las flechas cada pulsación
+        cambia la selección, y recorrer seis prelaciones dispararía seis
+        anuncios. Importa dónde acabaste, no cada paso (design.md, D6).
+      */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {anuncioSeleccion}
+      </p>
     </div>
   );
 }

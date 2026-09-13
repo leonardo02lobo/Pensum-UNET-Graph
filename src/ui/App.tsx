@@ -35,6 +35,7 @@ import {
   tramoDe,
 } from './tramos'
 import { useTamanoVentana } from './useTamanoVentana'
+import { useMovimientoReducido } from './useMovimientoReducido'
 import { Buscador } from './Buscador'
 import { Cabecera } from './Cabecera'
 import { Controles } from './Controles'
@@ -45,6 +46,7 @@ import { Calculadora, planInicial } from './Calculadora'
 import { Plan } from './Plan'
 import { PestanasVista } from './PestanasVista'
 import { ChipsFiltro } from './ChipsFiltro'
+import { AyudaTeclado } from './AyudaTeclado'
 import { useEnrutado } from './useVista'
 import { sinFiltros, type Direccion } from './direccion'
 import type { PlanEvaluacion } from '../evaluacion/plan'
@@ -116,6 +118,7 @@ export function App() {
   // entre los componentes haría imposible razonar sobre «¿se solapan?», que es
   // una propiedad del conjunto y no de cada isla (design.md, D2).
   const { ancho, alto } = useTamanoVentana()
+  const movimientoReducido = useMovimientoReducido()
   const tramo = tramoDe(ancho)
   const amplio = esAmplio(tramo)
   const colapsar = debeColapsar(tramo)
@@ -154,7 +157,12 @@ export function App() {
   )
 
   const [hover, setHover] = useState<string | null>(null)
+  // La rotación arranca apagada, así que nunca se inicia sola: eso es lo que
+  // pide `prefers-reduced-motion`. NO se acota con la preferencia — hacerlo
+  // rompería que el usuario pueda pedirla desde su control, y una preferencia
+  // no es una incapacidad (design.md, D4).
   const [girando, setGirando] = useState(false)
+  const [ayudaAbierta, setAyudaAbierta] = useState(false)
   const [orden, setOrden] = useState<OrdenCamara | null>(null)
   const nonce = useRef(0)
 
@@ -162,6 +170,7 @@ export function App() {
   // insistencia del usuario— la cabecera envuelve y crece hasta ~229 px, y el
   // cromo de la esquina opuesta se le monta encima. Se mide en vez de suponer
   // porque el alto depende de cuánto envuelva, que depende del ancho.
+  const busquedaRef = useRef<HTMLInputElement>(null)
   const cabeceraRef = useRef<HTMLElement>(null)
   const [altoCabecera, setAltoCabecera] = useState(0)
   useLayoutEffect(() => {
@@ -326,7 +335,18 @@ export function App() {
   }, [])
 
   // El teclado navega el grafo; en la calculadora estorbaría.
-  useTeclado({ grafo, seleccion: vista === 'grafo' ? seleccion : null, irA, limpiar })
+  const enfocarBusqueda = useCallback(() => {
+    busquedaRef.current?.focus()
+    busquedaRef.current?.select()
+  }, [])
+
+  useTeclado({
+    grafo,
+    seleccion: vista === 'grafo' ? seleccion : null,
+    irA,
+    limpiar,
+    enfocarBusqueda: vista === 'grafo' ? enfocarBusqueda : undefined,
+  })
 
   const materia = seleccion === null ? null : (grafo.materias.get(seleccion) ?? null)
 
@@ -403,6 +423,9 @@ export function App() {
         // Cualquier gesto sobre la escena detiene la rotación: seguir girando
         // mientras alguien la manipula es pelearse con él.
         onIntervenir={() => setGirando(false)}
+        movimientoReducido={movimientoReducido}
+        nombreSeleccion={materia?.nombre ?? null}
+        onVerLista={() => irAVista('plan')}
         orden={orden}
       />
 
@@ -435,7 +458,7 @@ export function App() {
               irAVista('plan')
             }}
           />
-          <Buscador grafo={grafo} onElegir={irA} />
+          <Buscador grafo={grafo} onElegir={irA} campoRef={busquedaRef} />
           <ChipsFiltro
             sector={sectorFiltrado}
             estado={estadoFiltrado}
@@ -466,6 +489,10 @@ export function App() {
             onGirar={setGirando}
             onVistaInicial={() => setOrden({ tipo: 'inicial', nonce: (nonce.current += 1) })}
             onVistaCenital={() => setOrden({ tipo: 'cenital', nonce: (nonce.current += 1) })}
+          />
+          <AyudaTeclado
+            abierta={ayudaAbierta}
+            onAlternar={() => setAyudaAbierta((v) => !v)}
           />
         </div>
 
