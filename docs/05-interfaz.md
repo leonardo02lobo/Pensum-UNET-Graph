@@ -1,6 +1,24 @@
 # Interfaz
 
-## Tres vistas
+## La dirección es el estado
+
+El fragmento de la URL no codifica solo la vista: lleva también la materia
+seleccionada y los tres filtros. `useVista` ya había tomado la decisión buena —*«se
+navega escribiendo el fragmento, no el estado: así el botón atrás del navegador queda
+dentro del mismo flujo y no hay dos fuentes de verdad»*— pero la aplicaba a una sola
+cosa de las cinco que la merecen.
+
+```
+  #/grafo
+  #/grafo/425401
+  #/grafo/425401?sector=programacion&estado=disponible&semestre=4
+  #/calculadora/425401
+  #/plan?estado=disponible
+```
+
+La materia es **de qué va** la pantalla y va en la ruta; los filtros son **cómo la
+estás mirando** y van en parámetros. Un enlace a una materia sigue teniendo sentido si
+se le quitan los parámetros, y uno con filtros y sin materia también.
 
 | Ruta | Vista |
 |---|---|
@@ -8,8 +26,40 @@
 | `#/plan` | El pensum como lista por semestre |
 | `#/calculadora` | Calculadora de nota definitiva |
 
-`useVista` escucha `hashchange` y navega **escribiendo el fragmento**, no el estado: así
-el botón atrás del navegador queda dentro del mismo flujo y no hay dos fuentes de verdad.
+### Empujar frente a reemplazar
+
+```
+  cambio de vista       →  location.hash = …        entrada NUEVA
+  cambio de selección   →  history.replaceState()   reemplaza
+  cambio de filtro      →  history.replaceState()   reemplaza
+```
+
+Sin esto, recorrer diez materias con las flechas deja diez entradas y para volver a
+donde estabas hay que pulsar atrás diez veces. Con flechas de navegación, que invitan a
+recorrer rápido, se nota de inmediato. La vista sí empuja, porque cambiar de vista **es**
+navegar.
+
+Consecuencia técnica: `replaceState` no dispara `hashchange`, así que el estado se
+actualiza en el mismo gesto que reemplaza la dirección, no esperando al evento.
+
+### La dirección es entrada del usuario
+
+`leerDireccion` es pura y tolerante: un valor inválido se descarta sin invalidar el
+resto. Pero un módulo puro solo puede comprobar la *forma* — que el sector esté entre
+los nueve, que el semestre sea un entero positivo. Que **exista** esa materia o ese
+semestre lo sabe el grafo, y se valida en `App`.
+
+No es una precaución teórica. Antes de este cambio la selección solo podía venir de un
+clic sobre un nodo real, así que todo lo de aguas abajo —`calcularResaltado`, el panel,
+el enfoque— da por hecho que el id existe **y lanza si no**. Un enlace a una materia
+inventada dejaba la pantalla en blanco. Y un `?semestre=99` mostraba un chip que no
+filtraba nada, con la escena entera atenuada.
+
+### Lo que NO va en la dirección
+
+El historial académico. Son datos personales, no caben en una URL y no deben viajar en
+un enlace compartido. Siguen viviendo en `localStorage` con su respaldo JSON. Los planes
+de evaluación tampoco: son papel de borrador y viven solo en memoria.
 
 ## El cromo sobre el lienzo
 
@@ -122,6 +172,7 @@ ante **cualquier** gesto sobre el lienzo, no solo al seleccionar.
 | `Cabecera` | Índice con dos decimales (Art. 55) y la señal del umbral normativo en que cae. Avance en U.C. Y **cuántas materias puedes inscribir**, que lleva a la lista filtrada. |
 | `Buscador` | Por nombre o código, insensible a acentos y mayúsculas. Elegir un resultado enfoca la cámara. |
 | `Leyenda` | Cuatro pestañas: **sectores**, **estados**, **compuertas** y **datos**. Las tres primeras filtran el grafo; la cuarta expone procedencia, discrepancias, inferencias y el respaldo. |
+| `ChipsFiltro` | Los filtros activos, juntos y en un solo sitio, con su retirada individual y completa. Muestran y quitan; elegir se sigue haciendo donde se hace. |
 | `Semestres` | Aísla un anillo. El grafo completo responde «cómo se conecta la carrera»; esto responde «qué veo este semestre». |
 | `Controles` | Giro automático, vista inicial y vista cenital. Sin un «volver a la vista inicial», quien orbita de más no tiene retorno. |
 | `PanelDetalle` | Materia seleccionada: datos, prelaciones directas, qué desbloquea, correquisitos, compuerta y estado. Incluye el editor de intentos. |
@@ -205,6 +256,24 @@ consecuencia citando la norma («Otorga créditos, no pesa en el índice — Art
 Quien tiene «17 de 20» lo convierte ahí y escribe la calificación resultante en su
 parcial. Es más simple que modelar actividades dentro de cada parcial, y cubre el mismo
 caso.
+
+### Los filtros eran invisibles
+
+Hay tres filtros, se eligen en dos componentes distintos —uno de ellos con pestañas— y
+componen entre sí. Si filtrabas por sector, cambiabas a la pestaña «compuertas» y te
+olvidabas, el grafo quedaba medio apagado **sin explicación a la vista**.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ FILTRANDO  ● Programación y Software ✕   Disponible ✕       │
+│            Semestre 4 ✕     Limpiar todo    Esc             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Los chips **muestran y quitan**; elegir se sigue haciendo donde se hace. Uno que además
+permitiera elegir duplicaría la leyenda y la barra de semestres. Son también la
+contraparte visible de `Esc`, que limpia los tres a la vez y hasta ahora solo estaba
+documentado aquí.
 
 ## Navegación por teclado
 

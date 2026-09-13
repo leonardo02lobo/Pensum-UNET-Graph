@@ -44,13 +44,71 @@ import { Semestres } from './Semestres'
 import { Calculadora, planInicial } from './Calculadora'
 import { Plan } from './Plan'
 import { PestanasVista } from './PestanasVista'
-import { useVista } from './useVista'
+import { ChipsFiltro } from './ChipsFiltro'
+import { useEnrutado } from './useVista'
+import { sinFiltros, type Direccion } from './direccion'
 import type { PlanEvaluacion } from '../evaluacion/plan'
 import { useTeclado } from './useTeclado'
 
 export function App() {
   const grafo = useMemo(() => construirGrafo(pensum), [])
-  const [vistaPedida, irAVista] = useVista()
+  const {
+    direccion,
+    navegar: irAVista,
+    navegarConMateria: irAVistaConMateria,
+    reemplazar,
+  } = useEnrutado()
+  const vistaPedida = direccion.vista
+
+  // Los cuatro estados que antes vivían en `useState` se derivan ahora de la
+  // dirección. No hay copia que sincronizar: es la regla que evita las dos
+  // fuentes de verdad (design.md, D3).
+  //
+  // La materia se valida contra el grafo: la dirección es entrada del usuario y
+  // puede nombrar cualquier cosa. Antes de este cambio la selección solo podía
+  // venir de un clic sobre un nodo real, así que todo lo de aguas abajo
+  // —`calcularResaltado`, el panel, el enfoque— da por hecho que el id existe y
+  // lanza si no. Un enlace con una materia inventada dejaba la pantalla en
+  // blanco.
+  const seleccion =
+    direccion.materia !== null && grafo.materias.has(direccion.materia)
+      ? direccion.materia
+      : null
+  const sectorFiltrado = direccion.sector
+  const estadoFiltrado = direccion.estado
+  // El semestre se valida contra los que el pensum tiene de verdad. `direccion`
+  // es un módulo puro y solo puede comprobar que sea un entero positivo; que
+  // exista un semestre 99 lo sabe el grafo. Sin esto, `?semestre=99` mostraba
+  // un chip que no filtraba nada y dejaba la escena entera atenuada.
+  const semestresReales = useMemo(
+    () => new Set([...grafo.materias.values()].map((m) => m.semestre)),
+    [grafo],
+  )
+  const semestreFiltrado =
+    direccion.semestre !== null && semestresReales.has(direccion.semestre)
+      ? direccion.semestre
+      : null
+
+  const cambiar = useCallback(
+    (parcial: Partial<Direccion>) => reemplazar({ ...direccion, ...parcial }),
+    [direccion, reemplazar],
+  )
+  const setSeleccion = useCallback(
+    (id: string | null) => cambiar({ materia: id }),
+    [cambiar],
+  )
+  const setSectorFiltrado = useCallback(
+    (v: Sector | null) => cambiar({ sector: v }),
+    [cambiar],
+  )
+  const setSemestreFiltrado = useCallback(
+    (v: number | null) => cambiar({ semestre: v }),
+    [cambiar],
+  )
+  const setEstadoFiltrado = useCallback(
+    (v: EstadoMateria | null) => cambiar({ estado: v }),
+    [cambiar],
+  )
 
   // ── Disposición ───────────────────────────────────────────────────────────
   //
@@ -96,10 +154,6 @@ export function App() {
   )
 
   const [hover, setHover] = useState<string | null>(null)
-  const [seleccion, setSeleccion] = useState<string | null>(null)
-  const [sectorFiltrado, setSectorFiltrado] = useState<Sector | null>(null)
-  const [semestreFiltrado, setSemestreFiltrado] = useState<number | null>(null)
-  const [estadoFiltrado, setEstadoFiltrado] = useState<EstadoMateria | null>(null)
   const [girando, setGirando] = useState(false)
   const [orden, setOrden] = useState<OrdenCamara | null>(null)
   const nonce = useRef(0)
@@ -155,24 +209,33 @@ export function App() {
   // Se indexan por materia para que cambiar de asignatura y volver no los
   // pierda dentro de la misma sesión; se pierden al recargar.
   const [planes, setPlanes] = useState<Record<string, PlanEvaluacion>>({})
-  const [materiaCalculada, setMateriaCalculada] = useState<string | null>(null)
   // Qué definitiva se registró ya desde la calculadora, por materia. Evita
   // añadir el mismo intento dos veces de un doble clic o de volver a la
   // pestaña. Si la definitiva cambia, vuelve a poder registrarse.
   const [registradas, setRegistradas] = useState<Record<string, number>>({})
 
+  // `materiaCalculada` y `seleccion` eran dos estados con dos selectores de
+  // materia, y ninguno le contaba al otro lo que sabía. Ahora son el mismo dato
+  // —`direccion.materia`— con dos usos (design.md, D5).
+  const materiaCalculada = seleccion
+
   const elegirMateriaCalculada = useCallback(
-    (id: string | null) => {
-      setMateriaCalculada(id)
-      if (id === null) return
-      setPlanes((previos) => {
-        if (previos[id]) return previos
-        const materia = grafo.materias.get(id)
-        return materia ? { ...previos, [id]: planInicial(materia) } : previos
-      })
-    },
-    [grafo],
+    (id: string | null) => setSeleccion(id),
+    [setSeleccion],
   )
+
+  // El plan inicial se crea al ENTRAR en la calculadora con una materia, venga
+  // de donde venga, en vez de solo al elegirla en su propio selector. Los
+  // planes siguen viviendo solo en memoria, indexados por materia.
+  useEffect(() => {
+    if (vistaPedida !== 'calculadora' || direccion.materia === null) return
+    const id = direccion.materia
+    setPlanes((previos) => {
+      if (previos[id]) return previos
+      const materia = grafo.materias.get(id)
+      return materia ? { ...previos, [id]: planInicial(materia) } : previos
+    })
+  }, [vistaPedida, direccion.materia, grafo])
 
   const registrarIntentos = useCallback((id: string, intentos: readonly Intento[]) => {
     setHistorial((h) => {
@@ -214,11 +277,26 @@ export function App() {
     [grafo, activo],
   )
 
-  const irA = useCallback((id: string) => {
-    setSeleccion(id)
-    setGirando(false)
-    setOrden({ tipo: 'enfocar', id, nonce: (nonce.current += 1) })
-  }, [])
+  const irA = useCallback(
+    (id: string) => {
+      setGirando(false)
+      setSeleccion(id)
+    },
+    [setSeleccion],
+  )
+
+  // El enfoque se dispara cuando la materia de la dirección CAMBIA, no cuando
+  // la dirección se vuelve a leer (design.md, D7). Así llegar por enlace o por
+  // el botón atrás enfoca una vez, y un render posterior no reenfoca sobre una
+  // cámara que el usuario ya movió.
+  const materiaEnfocada = useRef<string | null>(null)
+  useEffect(() => {
+    if (direccion.materia === materiaEnfocada.current) return
+    materiaEnfocada.current = direccion.materia
+    if (direccion.materia === null) return
+    if (!grafo.materias.has(direccion.materia)) return
+    setOrden({ tipo: 'enfocar', id: direccion.materia, nonce: (nonce.current += 1) })
+  }, [direccion.materia, grafo])
 
   // Saltos desde la lista. Reutilizan `irA` y `elegirMateriaCalculada` para
   // que una materia abierta desde el plan llegue igual que si se hubiera
@@ -226,26 +304,21 @@ export function App() {
   // su plan inicial ya creado en la calculadora.
   const verEnGrafo = useCallback(
     (id: string) => {
-      irAVista('grafo')
-      irA(id)
+      setGirando(false)
+      irAVistaConMateria('grafo', id)
     },
-    [irAVista, irA],
+    [irAVistaConMateria],
   )
 
   const calcularMateria = useCallback(
-    (id: string) => {
-      elegirMateriaCalculada(id)
-      irAVista('calculadora')
-    },
-    [elegirMateriaCalculada, irAVista],
+    (id: string) => irAVistaConMateria('calculadora', id),
+    [irAVistaConMateria],
   )
 
-  const limpiar = useCallback(() => {
-    setSeleccion(null)
-    setSemestreFiltrado(null)
-    setSectorFiltrado(null)
-    setEstadoFiltrado(null)
-  }, [])
+  const limpiar = useCallback(
+    () => reemplazar({ ...sinFiltros(direccion), materia: null }),
+    [direccion, reemplazar],
+  )
 
   const registrarDefinitiva = useCallback((id: string, nota: number) => {
     setHistorial((h) => ({ ...h, [id]: [...(h[id] ?? []), { tipo: 'regular', nota }] }))
@@ -363,6 +436,15 @@ export function App() {
             }}
           />
           <Buscador grafo={grafo} onElegir={irA} />
+          <ChipsFiltro
+            sector={sectorFiltrado}
+            estado={estadoFiltrado}
+            semestre={semestreFiltrado}
+            onQuitarSector={() => setSectorFiltrado(null)}
+            onQuitarEstado={() => setEstadoFiltrado(null)}
+            onQuitarSemestre={() => setSemestreFiltrado(null)}
+            onQuitarTodos={() => reemplazar(sinFiltros(direccion))}
+          />
           {avisoAlmacen && (
             <p className="pointer-events-auto max-w-80 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-200">
               {avisoAlmacen}
