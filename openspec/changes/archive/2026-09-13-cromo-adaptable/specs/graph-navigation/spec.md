@@ -1,29 +1,4 @@
-# graph-navigation Specification
-
-## Purpose
-
-Definir las ayudas de navegación de la escena: referencias visibles de la geometría, resolución de solapamiento de etiquetas, recorrido por semestre, controles de cámara y navegación con teclado.
-
-## Requirements
-
-### Requirement: Referencias visibles de la geometría
-
-El sistema SHALL dibujar anillos guía concéntricos, uno por semestre, y SHALL etiquetar cada anillo con su número de semestre y cada sector con su nombre junto al extremo exterior de su brazo. Estas referencias SHALL estar visibles sin interacción alguna.
-
-#### Scenario: Las dos reglas del diseño se leen de la escena
-
-- **WHEN** se carga la aplicación y no se ha interactuado
-- **THEN** se ven diez anillos concéntricos etiquetados `S1`…`S10` y los ocho nombres de sector junto a sus brazos, de modo que «el radio es el semestre y el ángulo es el sector» se lee del dibujo y no solo del texto de la leyenda
-
-#### Scenario: Las etiquetas de semestre no tapan materias
-
-- **WHEN** se sitúan las etiquetas de anillo
-- **THEN** cuelgan del ángulo inicial del layout — la costura del sunburst, el único ángulo sin materias asignadas
-
-#### Scenario: El nombre del brazo queda fuera de sus materias
-
-- **WHEN** se sitúa la etiqueta de un sector
-- **THEN** se coloca en el centro angular de su arco y a un radio mayor que el de su materia más lejana
+## MODIFIED Requirements
 
 ### Requirement: Etiquetas sin solapamiento
 
@@ -111,37 +86,3 @@ El sistema SHALL ofrecer controles para volver a la vista inicial, ir a una vist
 
 - **WHEN** el ancho no permite mantener los controles de cámara en su sitio de escritorio
 - **THEN** siguen siendo alcanzables desde una posición que no se solapa con el resto del cromo
-
-### Requirement: Navegación con teclado
-
-El sistema SHALL permitir recorrer el grafo con el teclado: avanzar a lo que una materia desbloquea, retroceder a sus prelaciones, rotar entre materias hermanas y limpiar la selección. SHALL no capturar el teclado mientras el foco está en un campo de texto.
-
-#### Scenario: Recorrer una cadena de prelaciones
-
-- **WHEN** hay una materia seleccionada y el usuario pulsa la flecha derecha
-- **THEN** se selecciona una materia que esa desbloquea, y la cámara la enfoca
-
-#### Scenario: Retroceder
-
-- **WHEN** el usuario pulsa la flecha izquierda
-- **THEN** se selecciona una prelación directa de la materia actual
-
-#### Scenario: Entrar sin selección previa
-
-- **WHEN** no hay materia seleccionada y el usuario pulsa una flecha
-- **THEN** se selecciona la primera materia del orden topológico
-
-#### Scenario: Materia terminal
-
-- **WHEN** el usuario pulsa la flecha derecha sobre una materia que no desbloquea nada
-- **THEN** la selección no cambia y no se produce error
-
-#### Scenario: Limpiar con Escape
-
-- **WHEN** el usuario pulsa Escape
-- **THEN** se limpian la selección y los filtros activos
-
-#### Scenario: El teclado no interfiere con la búsqueda
-
-- **WHEN** el foco está en el campo de búsqueda y el usuario pulsa las flechas
-- **THEN** las flechas mueven el cursor del texto y no navegan el grafo

@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Definir la pestaña de calculadora: la navegación entre el grafo y la calculadora, la elección de la materia, la captura del plan y de las calificaciones, la presentación de los resultados, los avisos normativos visibles, el conversor de porcentaje a calificación y el registro de la definitiva en el historial.
+Definir la pestaña de calculadora: la navegación entre las tres vistas —el grafo, la lista del pensum y la calculadora—, la elección de la materia, la captura del plan y de las calificaciones, la presentación de los resultados, los avisos normativos visibles, el conversor de porcentaje a calificación y el registro de la definitiva en el historial.
 
 ## Requirements
 
 ### Requirement: Navegación entre el grafo y la calculadora
 
-El sistema SHALL ofrecer dos vistas —el grafo y la calculadora— direccionables mediante el fragmento de la URL, de modo que el enlace sea compartible y el botón de retroceso del navegador funcione.
+El sistema SHALL ofrecer tres vistas —el grafo, la lista del pensum y la calculadora— direccionables mediante el fragmento de la URL, de modo que el enlace sea compartible y el botón de retroceso del navegador funcione. El conmutador de vistas SHALL estar visible en las tres.
 
 #### Scenario: Vista por defecto
 
@@ -20,15 +20,20 @@ El sistema SHALL ofrecer dos vistas —el grafo y la calculadora— direccionabl
 - **WHEN** el usuario abre la pestaña de la calculadora
 - **THEN** el fragmento de la URL pasa a identificarla y se muestra la calculadora
 
+#### Scenario: Entrar a la lista
+
+- **WHEN** el usuario abre la pestaña de la lista del pensum
+- **THEN** el fragmento de la URL pasa a `#/plan` y se muestra la lista
+
 #### Scenario: Enlace directo
 
-- **WHEN** se carga la aplicación con el fragmento de la calculadora
+- **WHEN** se carga la aplicación con el fragmento de la calculadora o el de la lista
 - **THEN** arranca directamente en esa vista
 
 #### Scenario: Retroceso del navegador
 
-- **WHEN** el usuario navega a la calculadora y pulsa atrás
-- **THEN** vuelve al grafo sin recargar la aplicación
+- **WHEN** el usuario navega del grafo a la lista y de ahí a la calculadora, y pulsa atrás dos veces
+- **THEN** recorre las vistas en orden inverso sin recargar la aplicación
 
 #### Scenario: Fragmento desconocido
 

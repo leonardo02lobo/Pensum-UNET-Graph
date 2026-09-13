@@ -18,6 +18,13 @@ interface Props {
   readonly onFiltrarEstado: (e: EstadoMateria | null) => void
   readonly onImportar: (h: Historial) => void
   readonly onIr: (id: string) => void
+  /** Fuera del tramo amplio arranca colapsada: la banda inferior no da para
+   *  ella y el control de semestres a la vez. Colapsar conserva el tamaño de
+   *  lo que queda visible; encoger produciría texto de 9 px (design.md, D5). */
+  readonly colapsadaPorDefecto?: boolean
+  /** Tope de alto en px, para no salirse de la ventana cuando el panel de
+   *  detalle es hoja y empuja el cromo inferior hacia arriba. */
+  readonly altoMaximo?: number
 }
 
 type Pestana = 'sectores' | 'estados' | 'compuertas' | 'datos'
@@ -41,8 +48,10 @@ export function Leyenda({
   onFiltrarEstado,
   onImportar,
   onIr,
+  colapsadaPorDefecto = false,
+  altoMaximo,
 }: Props) {
-  const [abierta, setAbierta] = useState(true)
+  const [abierta, setAbierta] = useState(!colapsadaPorDefecto)
   const [pestana, setPestana] = useState<Pestana>('sectores')
   const tokens = useMemo(() => leerTokens(), [])
 
@@ -114,7 +123,10 @@ export function Leyenda({
         </button>
       </div>
 
-      <div className="max-h-[50vh] overflow-y-auto p-2">
+      <div
+        className="overflow-y-auto p-2"
+        style={{ maxHeight: altoMaximo ?? '50vh' }}
+      >
         {pestana === 'sectores' && (
           <>
             <ul className="flex flex-col gap-0.5">

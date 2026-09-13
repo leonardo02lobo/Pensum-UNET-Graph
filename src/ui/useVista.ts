@@ -7,17 +7,19 @@ import { useCallback, useEffect, useState } from 'react'
  * `hashchange` propio da URL compartible y botón atrás en unas pocas líneas.
  */
 
-export type Vista = 'grafo' | 'calculadora'
+export type Vista = 'grafo' | 'plan' | 'calculadora'
 
 const RUTAS: Readonly<Record<string, Vista>> = {
   '': 'grafo',
   '#/': 'grafo',
   '#/grafo': 'grafo',
+  '#/plan': 'plan',
   '#/calculadora': 'calculadora',
 }
 
 const FRAGMENTO: Readonly<Record<Vista, string>> = {
   grafo: '#/grafo',
+  plan: '#/plan',
   calculadora: '#/calculadora',
 }
 

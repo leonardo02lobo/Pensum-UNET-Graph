@@ -7,6 +7,8 @@ interface Props {
   readonly activo: number | null
   readonly onElegir: (semestre: number | null) => void
   readonly onIr: (id: string) => void
+  /** Cuando los diez botones no caben en el ancho disponible. */
+  readonly compacto?: boolean
 }
 
 /**
@@ -17,7 +19,7 @@ interface Props {
  * el mapa en un plan: el radio deja de ser una regla del diseño y pasa a ser
  * algo que se recorre.
  */
-export function Semestres({ grafo, activo, onElegir, onIr }: Props) {
+export function Semestres({ grafo, activo, onElegir, onIr, compacto = false }: Props) {
   const tokens = useMemo(() => leerTokens(), [])
 
   const porSemestre = useMemo(() => {
@@ -43,11 +45,15 @@ export function Semestres({ grafo, activo, onElegir, onIr }: Props) {
   return (
     <div className="pointer-events-auto flex flex-col items-center gap-2">
       {activo !== null && (
-        <div className="max-h-[34vh] w-[26rem] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-hairline bg-void-soft/90 p-2 shadow-2xl backdrop-blur">
+        <div
+          className={`max-h-[34vh] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-hairline bg-void-soft/90 p-2 shadow-2xl backdrop-blur ${
+            compacto ? "w-[20rem]" : "w-[26rem]"
+          }`}
+        >
           <p className="px-2 pt-1 pb-2 text-[11px] tracking-wider text-slate-500 uppercase">
             Semestre {activo} · {materias.length} materias · {uc} U.C.
           </p>
-          <ul className="grid grid-cols-2 gap-0.5">
+          <ul className={`grid gap-0.5 ${compacto ? "grid-cols-1" : "grid-cols-2"}`}>
             {materias.map((id) => {
               const m = grafo.materias.get(id)!
               return (
@@ -74,35 +80,63 @@ export function Semestres({ grafo, activo, onElegir, onIr }: Props) {
         </div>
       )}
 
-      <div className="flex items-center gap-1 rounded-xl border border-hairline bg-void-soft/90 p-1.5 shadow-2xl backdrop-blur">
-        <span className="px-1.5 text-[10px] tracking-wider text-slate-600 uppercase">
-          Semestre
-        </span>
-        {semestres.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => onElegir(activo === s ? null : s)}
-            aria-pressed={activo === s}
-            className={`size-7 rounded-md text-[11px] tabular-nums transition ${
-              activo === s
-                ? 'bg-white/15 font-semibold text-white'
-                : 'text-slate-400 hover:bg-white/5 hover:text-white'
-            }`}
+      {/* Los diez botones miden 399 px. Donde no caben, la barra pasa a
+          desplegable en vez de encogerse: encoger daría objetivos de 5 px y
+          texto ilegible; colapsar conserva el tamaño de lo que queda visible
+          y sigue dando acceso a los diez semestres (design.md, D5). */}
+      {compacto ? (
+        <div className="flex items-center gap-2 rounded-xl border border-hairline bg-void-soft/90 px-2 py-1.5 shadow-2xl backdrop-blur">
+          <label
+            htmlFor="selector-semestre"
+            className="text-[10px] tracking-wider text-slate-600 uppercase"
           >
-            {s}
-          </button>
-        ))}
-        {activo !== null && (
-          <button
-            type="button"
-            onClick={() => onElegir(null)}
-            className="ml-1 rounded-md px-2 py-1 text-[11px] text-slate-500 transition hover:text-white"
+            Semestre
+          </label>
+          <select
+            id="selector-semestre"
+            value={activo ?? ''}
+            onChange={(e) => onElegir(e.target.value === '' ? null : Number(e.target.value))}
+            className="rounded-md bg-white/5 px-2 py-1 text-[12px] text-slate-200 outline-none"
           >
-            Todos
-          </button>
-        )}
-      </div>
+            <option value="">Todos</option>
+            {semestres.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1 rounded-xl border border-hairline bg-void-soft/90 p-1.5 shadow-2xl backdrop-blur">
+          <span className="px-1.5 text-[10px] tracking-wider text-slate-600 uppercase">
+            Semestre
+          </span>
+          {semestres.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onElegir(activo === s ? null : s)}
+              aria-pressed={activo === s}
+              className={`size-7 rounded-md text-[11px] tabular-nums transition ${
+                activo === s
+                  ? 'bg-white/15 font-semibold text-white'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+          {activo !== null && (
+            <button
+              type="button"
+              onClick={() => onElegir(null)}
+              className="ml-1 rounded-md px-2 py-1 text-[11px] text-slate-500 transition hover:text-white"
+            >
+              Todos
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }

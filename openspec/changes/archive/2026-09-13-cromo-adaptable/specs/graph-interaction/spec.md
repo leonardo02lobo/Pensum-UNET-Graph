@@ -1,10 +1,4 @@
-# graph-interaction Specification
-
-## Purpose
-
-Definir la interacción con el grafo: iluminación del cono de dependencias al posar el cursor, etiquetas contextuales, selección con panel de detalle, búsqueda con enfoque de cámara, leyenda de sectores y compuertas, y procedencia visible de los datos.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Hover ilumina el cono de dependencias
 
@@ -34,20 +28,6 @@ Al posar el cursor sobre una materia, el sistema SHALL iluminar simultáneamente
 
 - **WHEN** el usuario toca una materia en un dispositivo sin cursor
 - **THEN** el cono de esa materia se ilumina igual que al posar el cursor, sin que haga falta ningún gesto previo
-
-### Requirement: Etiquetas visibles solo cuando aportan
-
-El sistema SHALL mostrar el nombre de una materia cuando esté bajo el cursor, cuando esté seleccionada, o cuando pertenezca a un cono iluminado. El resto de las materias SHALL renderizarse sin etiqueta.
-
-#### Scenario: Estado de reposo sin texto
-
-- **WHEN** ninguna materia está bajo el cursor ni seleccionada
-- **THEN** no se muestra ninguna etiqueta de nombre en la escena
-
-#### Scenario: El cono se etiqueta completo
-
-- **WHEN** el usuario posa el cursor sobre una materia y se ilumina su cono
-- **THEN** todas las materias del cono muestran su nombre
 
 ### Requirement: Selección con panel de detalle
 
@@ -97,64 +77,3 @@ Al hacer clic o tocar sobre una materia, el sistema SHALL seleccionarla y abrir 
 
 - **WHEN** el usuario arrastra sobre la escena para orbitarla y el gesto termina sobre una materia
 - **THEN** no se selecciona ninguna materia, porque orbitar y elegir son gestos distintos
-
-### Requirement: Navegación desde el panel
-
-El panel de detalle SHALL permitir saltar a cualquier materia listada en sus prelaciones, correquisitos o desbloqueos, convirtiéndola en la nueva selección.
-
-#### Scenario: Salto a una prelación
-
-- **WHEN** el usuario hace clic en `Estructura de Datos` dentro del panel de `Programación II`
-- **THEN** `Estructura de Datos` pasa a ser la materia seleccionada, el panel muestra sus datos y la cámara la enfoca
-
-### Requirement: Búsqueda con enfoque de cámara
-
-El sistema SHALL ofrecer un campo de búsqueda que filtre materias por nombre o código de forma incremental. Al elegir un resultado, SHALL seleccionarla y desplazar la cámara para enfocarla.
-
-#### Scenario: Búsqueda incremental
-
-- **WHEN** el usuario escribe `"progra"` en el campo de búsqueda
-- **THEN** la lista de resultados muestra `Programación I` y `Programación II`
-
-#### Scenario: Búsqueda insensible a acentos
-
-- **WHEN** el usuario escribe `"matematica"` sin tilde
-- **THEN** los resultados incluyen las materias cuyo nombre lleva tilde
-
-#### Scenario: Enfoque al elegir un resultado
-
-- **WHEN** el usuario elige un resultado de la búsqueda
-- **THEN** esa materia queda seleccionada, su cono se ilumina y la cámara transiciona para enfocarla
-
-#### Scenario: Sin resultados
-
-- **WHEN** el texto buscado no coincide con ninguna materia
-- **THEN** se informa que no hay resultados y el grafo permanece sin cambios
-
-### Requirement: Leyenda de sectores y tabla de compuertas
-
-El sistema SHALL mostrar una leyenda con los nueve sectores y su color, y una referencia consultable de las compuertas por créditos con su umbral y las materias que desbloquean.
-
-#### Scenario: Leyenda de sectores
-
-- **WHEN** el usuario abre la leyenda
-- **THEN** ve los nueve sectores con el color que los identifica en la escena, incluida la línea de Actividad Deportiva
-
-#### Scenario: Referencia de compuertas
-
-- **WHEN** el usuario consulta la referencia de compuertas
-- **THEN** ve los umbrales 12, 78, 90, 100, 110 y 126 unidades de crédito y 80% y 100%, cada uno con las materias que habilita
-
-#### Scenario: Filtrado por sector desde la leyenda
-
-- **WHEN** el usuario activa un sector en la leyenda
-- **THEN** las materias de ese sector permanecen destacadas y las demás se atenúan
-
-### Requirement: Procedencia de los datos visible
-
-El sistema SHALL exponer en la interfaz la fecha de última verificación del dataset y las fuentes de las que proviene.
-
-#### Scenario: Procedencia consultable
-
-- **WHEN** el usuario consulta la información del pensum
-- **THEN** ve la fecha de última verificación y la referencia al Canva del 06/05/2026 y al PDF oficial de la UNET

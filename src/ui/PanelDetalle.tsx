@@ -10,6 +10,12 @@ import { NOMBRE_ESTADO, type EstadoMateria } from '../progreso/estados'
 import type { Intento } from '../progreso/tipos'
 import { NOMBRE_SECTOR, colorDeSector, leerTokens } from '../view/tokens'
 import { EditorIntentos } from './EditorIntentos'
+import {
+  ANCHO_PANEL,
+  FRACCION_ALTO_HOJA,
+  MARGEN_PANEL,
+  type FormaPanel,
+} from './panel'
 
 interface Props {
   readonly grafo: PensumGraph
@@ -20,6 +26,8 @@ interface Props {
   readonly onRegistrar: (id: string, intentos: readonly Intento[]) => void
   readonly onIr: (id: string) => void
   readonly onCerrar: () => void
+  /** Lateral donde caben dos columnas; hoja inferior donde no. */
+  readonly forma: FormaPanel
 }
 
 const CLASE_ESTADO: Readonly<Record<EstadoMateria, string>> = {
@@ -86,6 +94,7 @@ export function PanelDetalle({
   onRegistrar,
   onIr,
   onCerrar,
+  forma,
 }: Props) {
   const tokens = leerTokens()
   const prelaciones = prelacionesDirectas(grafo, materia.id)
@@ -96,7 +105,18 @@ export function PanelDetalle({
   const compuerta = evaluarCompuerta(materia, ucAprobadas)
 
   return (
-    <aside className="pointer-events-auto absolute top-4 right-4 bottom-4 flex w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-hairline bg-void-soft/90 shadow-2xl backdrop-blur">
+    <aside
+      // Como hoja deja ver la escena por encima: un panel que tapa el grafo
+      // que está explicando no explica nada.
+      className={`pointer-events-auto absolute flex flex-col overflow-hidden rounded-xl border border-hairline bg-void-soft/90 shadow-2xl backdrop-blur ${
+        forma === 'lateral' ? 'top-4 right-4 bottom-4' : 'right-4 bottom-4 left-4'
+      }`}
+      style={
+        forma === 'lateral'
+          ? { width: ANCHO_PANEL, maxWidth: `calc(100vw - ${MARGEN_PANEL * 2}px)` }
+          : { maxHeight: `${FRACCION_ALTO_HOJA * 100}vh` }
+      }
+    >
       <header className="flex items-start gap-3 border-b border-hairline p-4">
         <span
           aria-hidden
