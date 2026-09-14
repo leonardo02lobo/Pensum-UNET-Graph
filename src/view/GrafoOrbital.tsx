@@ -21,6 +21,8 @@ import {
   separacionMinima,
   type Anillo,
 } from "../layout/orbital";
+import type { FranjaPanel } from "../ui/panel";
+import { esArrastre } from "./gesto";
 import { CapaEtiquetas, type ItemEtiqueta } from "./CapaEtiquetas";
 import { NOMBRE_SECTOR, colorDeSector, leerTokens } from "./tokens";
 
@@ -68,7 +70,20 @@ interface Props {
   /** Falso mientras el historial esté vacío: sin datos no se atenúa nada. */
   readonly progresoActivo: boolean;
   readonly girando: boolean;
-  readonly panelAbierto: boolean;
+  /** Franja que ocupa el panel de detalle, o `SIN_PANEL` si está cerrado. */
+  readonly franjaPanel: FranjaPanel;
+  /** El usuario ha intervenido sobre la escena (orbitar, tocar, hacer zoom).
+   *  La rotación automática se detiene ante cualquier gesto, no solo al
+   *  seleccionar: seguir girando mientras alguien manipula la escena es
+   *  pelearse con él. */
+  readonly onIntervenir: () => void;
+  /** El sistema pide movimiento reducido: las transiciones de cámara se
+   *  resuelven como un salto, sin recorrido. El encuadre final es el mismo. */
+  readonly movimientoReducido: boolean;
+  /** Nombre de la materia seleccionada, para anunciarla. `null` si no hay. */
+  readonly nombreSeleccion: string | null;
+  /** Lleva a la vista de lista, el equivalente textual de la escena. */
+  readonly onVerLista: () => void;
   readonly onHover: (id: string | null) => void;
   readonly onSelect: (id: string | null) => void;
   readonly orden: OrdenCamara | null;
@@ -83,11 +98,19 @@ interface Props {
 const FRACCION_RADIO_NODO = 0.29;
 /** Las materias con compuerta se dibujan algo menores: no están ancladas. */
 const FRACCION_RADIO_GATE = 0.23;
+/**
+ * Cuánto mayor es el área de acierto que el disco visible.
+ *
+ * No se agranda el disco: su tamaño ya codifica información (los descendientes
+ * se hinchan, lo disponible destaca). Se añade geometría de colisión mayor y
+ * transparente (design.md, D6). Con el dedo, acertar un disco de 17 px que
+ * además se mueve al orbitar no es una interacción que se degrade: es una que
+ * no funciona.
+ */
+const FACTOR_ACIERTO = 2.2;
+
 /** Separación cámara-nodo al enfocar, como fracción del encuadre completo. */
 const FRACCION_ENFOQUE = 0.78;
-/** Ancho del panel de detalle (22rem + margen), para que las etiquetas lo esquiven. */
-const ANCHO_PANEL = 368;
-
 /**
  * Cuánto se apaga cada estado.
  *
@@ -178,7 +201,11 @@ export function GrafoOrbital({
   estados,
   progresoActivo,
   girando,
-  panelAbierto,
+  franjaPanel,
+  onIntervenir,
+  movimientoReducido,
+  nombreSeleccion,
+  onVerLista,
   onHover,
   onSelect,
   orden,
@@ -192,6 +219,10 @@ export function GrafoOrbital({
   const objetos = useRef(
     new Map<string, { grupo: THREE.Group; esfera: THREE.Mesh }>(),
   );
+
+  // Estado del gesto en curso, para distinguir un toque de una órbita.
+  const inicioGesto = useRef<{ x: number; y: number } | null>(null);
+  const arrastrando = useRef(false);
 
   // Los accesores de enlace se evalúan en cada refresh; leen el estado desde
   // una ref para no tener que recrear las funciones.
@@ -330,6 +361,23 @@ export function GrafoOrbital({
       );
       grupo.add(esfera);
 
+      // Área de acierto: invisible, mayor que el disco, y sin escribir en el
+      // buffer de profundidad para no velar el bloom ni alterar el orden de
+      // transparencias de la escena.
+      const acierto = new THREE.Mesh(
+        new THREE.SphereGeometry(radio * FACTOR_ACIERTO, 8, 6),
+        new THREE.MeshBasicMaterial({
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          depthTest: false,
+          colorWrite: false,
+        }),
+      );
+      // No se dibuja; solo existe para que el raycaster lo encuentre.
+      acierto.renderOrder = -1;
+      grupo.add(acierto);
+
       objetos.current.set(nodo.id, { grupo, esfera });
       aplicarEstilo(nodo.id, { esfera });
       return grupo;
@@ -410,19 +458,22 @@ export function GrafoOrbital({
     const fg = fgRef.current;
     if (!fg) return;
     const d = distanciaCamara();
+    // Con movimiento reducido el encuadre final es idéntico; lo que desaparece
+    // es el trayecto. `cameraPosition` con 0 ms coloca la cámara de golpe.
+    const ms = (normal: number) => (movimientoReducido ? 0 : normal);
 
     if (orden.tipo === "inicial") {
       fg.cameraPosition(
         { x: 0, y: d * 0.866, z: d * 0.5 },
         { x: 0, y: 0, z: 0 },
-        700,
+        ms(700),
       );
       return;
     }
     if (orden.tipo === "cenital") {
       // Casi a plomo: la vista donde brazos y anillos se leen sin deformación,
       // a costa de perder el relieve.
-      fg.cameraPosition({ x: 0, y: d, z: 0.001 }, { x: 0, y: 0, z: 0 }, 700);
+      fg.cameraPosition({ x: 0, y: d, z: 0.001 }, { x: 0, y: 0, z: 0 }, ms(700));
       return;
     }
 
@@ -440,9 +491,9 @@ export function GrafoOrbital({
         z: nodo.z + (nodo.z / largo) * s,
       },
       { x: nodo.x, y: nodo.y, z: nodo.z },
-      900,
+      ms(900),
     );
-  }, [orden, datos, distanciaCamara]);
+  }, [orden, datos, distanciaCamara, movimientoReducido]);
 
   // ── Etiquetas ─────────────────────────────────────────────────────────────
   const items = useMemo<ItemEtiqueta[]>(() => {
@@ -556,8 +607,51 @@ export function GrafoOrbital({
     return (l.tipo === "cruce-sector" ? 1.1 : 0.6) * u;
   };
 
+  // Coalescencia: solo se anuncia cuando la selección se queda quieta. Sin
+  // esto, recorrer rápido una cadena encola un anuncio por pulsación y el
+  // recorrido se vuelve inusable — justo la función que la app hizo bien.
+  const [anuncioSeleccion, setAnuncioSeleccion] = useState("");
+  useEffect(() => {
+    if (nombreSeleccion === null) {
+      setAnuncioSeleccion("");
+      return;
+    }
+    const t = setTimeout(() => setAnuncioSeleccion(nombreSeleccion), 400);
+    return () => clearTimeout(t);
+  }, [nombreSeleccion]);
+
   return (
-    <div ref={contenedor} className="relative h-full w-full">
+    <div
+      ref={contenedor}
+      className="relative h-full w-full"
+      role="application"
+      aria-label={`Grafo del pensum: ${grafo.materias.size} materias situadas por semestre (radio) y sector (ángulo), con sus prelaciones`}
+      // Orbitar y elegir son gestos distintos. `onNodeClick` dispara al soltar
+      // sin más, así que un arrastre que termina sobre un nodo lo seleccionaría
+      // — y como la cámara acaba de moverse, el usuario no sabría por qué se
+      // abrió un panel (design.md, D7).
+      onPointerDown={(e) => {
+        inicioGesto.current = { x: e.clientX, y: e.clientY };
+        arrastrando.current = false;
+      }}
+      onPointerMove={(e) => {
+        const i = inicioGesto.current;
+        if (!i) return;
+        if (esArrastre(i, { x: e.clientX, y: e.clientY })) {
+          if (!arrastrando.current) onIntervenir();
+          arrastrando.current = true;
+        }
+      }}
+      onPointerUp={() => {
+        inicioGesto.current = null;
+        // El clic llega después de `pointerup`; se limpia en el siguiente
+        // fotograma para que `onNodeClick` todavía vea el arrastre.
+        requestAnimationFrame(() => {
+          arrastrando.current = false;
+        });
+      }}
+      onWheel={onIntervenir}
+    >
       {/* Hasta tener medida real no se monta: con 0×0 WebGL dibuja sobre un
           framebuffer vacío y la cámara queda con aspecto NaN. `useLayoutEffect`
           mide antes del primer pintado, así que no se ve ningún salto. */}
@@ -584,15 +678,48 @@ export function GrafoOrbital({
           linkDirectionalArrowRelPos={1}
           linkDirectionalArrowColor={linkColor}
           onNodeHover={(n) => onHover(n ? n.id : null)}
-          onNodeClick={(n) => onSelect(n.id)}
-          onBackgroundClick={() => onSelect(null)}
+          // Un toque enciende el cono además de seleccionar: sin cursor no hay
+          // `onNodeHover`, y el cono es la aportación del grafo. Sin esto
+          // quedaría fuera del alcance de quien usa el dedo (D6).
+          onNodeClick={(n) => {
+            if (arrastrando.current) return;
+            onHover(n.id);
+            onSelect(n.id);
+          }}
+          onBackgroundClick={() => {
+            if (arrastrando.current) return;
+            onSelect(null);
+          }}
         />
       )}
       <CapaEtiquetas
         obtenerCamara={obtenerCamara}
         items={items}
-        bordeDerecho={panelAbierto ? window.innerWidth - ANCHO_PANEL : null}
+        franja={franjaPanel}
       />
+
+      {/*
+        La escena es un `<canvas>`: para un lector de pantalla no existe. En vez
+        de simular un árbol paralelo de 68 nodos —que sería reconstruir la lista
+        dentro del lienzo— se DELEGA explícitamente en la vista de lista, que ya
+        existe y es mejor en ese medio (design.md, D5).
+      */}
+      <button
+        type="button"
+        onClick={onVerLista}
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-1/2 focus:z-50 focus:-translate-x-1/2 focus:rounded-lg focus:border focus:border-hairline focus:bg-void-soft focus:px-3 focus:py-2 focus:text-sm focus:text-slate-200"
+      >
+        Ver el pensum como lista navegable
+      </button>
+
+      {/*
+        El anuncio es `polite` y no interrumpe: con las flechas cada pulsación
+        cambia la selección, y recorrer seis prelaciones dispararía seis
+        anuncios. Importa dónde acabaste, no cada paso (design.md, D6).
+      */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {anuncioSeleccion}
+      </p>
     </div>
   );
 }

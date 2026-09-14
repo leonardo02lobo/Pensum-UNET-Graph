@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Definir la pestaña de calculadora: la navegación entre el grafo y la calculadora, la elección de la materia, la captura del plan y de las calificaciones, la presentación de los resultados, los avisos normativos visibles, el conversor de porcentaje a calificación y el registro de la definitiva en el historial.
+Definir la pestaña de calculadora: la navegación entre las tres vistas —el grafo, la lista del pensum y la calculadora—, la elección de la materia, la captura del plan y de las calificaciones, la presentación de los resultados, los avisos normativos visibles, el conversor de porcentaje a calificación y el registro de la definitiva en el historial.
 
 ## Requirements
 
 ### Requirement: Navegación entre el grafo y la calculadora
 
-El sistema SHALL ofrecer dos vistas —el grafo y la calculadora— direccionables mediante el fragmento de la URL, de modo que el enlace sea compartible y el botón de retroceso del navegador funcione.
+El sistema SHALL ofrecer tres vistas —el grafo, la lista del pensum y la calculadora— direccionables mediante el fragmento de la URL, de modo que el enlace sea compartible y el botón de retroceso del navegador funcione. El conmutador de vistas SHALL estar visible en las tres.
 
 #### Scenario: Vista por defecto
 
@@ -20,15 +20,20 @@ El sistema SHALL ofrecer dos vistas —el grafo y la calculadora— direccionabl
 - **WHEN** el usuario abre la pestaña de la calculadora
 - **THEN** el fragmento de la URL pasa a identificarla y se muestra la calculadora
 
+#### Scenario: Entrar a la lista
+
+- **WHEN** el usuario abre la pestaña de la lista del pensum
+- **THEN** el fragmento de la URL pasa a `#/plan` y se muestra la lista
+
 #### Scenario: Enlace directo
 
-- **WHEN** se carga la aplicación con el fragmento de la calculadora
+- **WHEN** se carga la aplicación con el fragmento de la calculadora o el de la lista
 - **THEN** arranca directamente en esa vista
 
 #### Scenario: Retroceso del navegador
 
-- **WHEN** el usuario navega a la calculadora y pulsa atrás
-- **THEN** vuelve al grafo sin recargar la aplicación
+- **WHEN** el usuario navega del grafo a la lista y de ahí a la calculadora, y pulsa atrás dos veces
+- **THEN** recorre las vistas en orden inverso sin recargar la aplicación
 
 #### Scenario: Fragmento desconocido
 
@@ -37,7 +42,7 @@ El sistema SHALL ofrecer dos vistas —el grafo y la calculadora— direccionabl
 
 ### Requirement: Elección de la materia
 
-La calculadora SHALL operar sobre una materia del pensum, elegida mediante búsqueda por nombre o código, y SHALL mostrar sus unidades de crédito junto con la regla del Artículo 32 que le corresponde.
+La calculadora SHALL operar sobre una materia del pensum, elegida mediante búsqueda por nombre o código, y SHALL mostrar sus unidades de crédito junto con la regla del Artículo 32 que le corresponde. La materia elegida SHALL compartirse con el resto de la aplicación y reflejarse en la dirección, de modo que cambiar de vista no obligue a volver a buscar lo que ya estaba elegido.
 
 #### Scenario: Elegir materia
 
@@ -58,6 +63,26 @@ La calculadora SHALL operar sobre una materia del pensum, elegida mediante búsq
 
 - **WHEN** todavía no se ha elegido materia
 - **THEN** la calculadora explica qué hace y no muestra resultados vacíos
+
+#### Scenario: La materia cruza del grafo a la calculadora
+
+- **WHEN** el usuario tiene una materia seleccionada en el grafo y cambia a la calculadora
+- **THEN** la calculadora arranca sobre esa materia, con su plan inicial listo, sin pedir una búsqueda
+
+#### Scenario: La materia cruza de la calculadora al grafo
+
+- **WHEN** el usuario tiene una materia en la calculadora y cambia al grafo
+- **THEN** esa materia queda seleccionada y enfocada
+
+#### Scenario: Enlace directo a la calculadora de una materia
+
+- **WHEN** se carga una dirección que identifica la calculadora y una materia
+- **THEN** la calculadora arranca sobre esa materia
+
+#### Scenario: Cambiar de materia en la calculadora actualiza la dirección
+
+- **WHEN** el usuario cambia la materia desde la calculadora
+- **THEN** la dirección lo refleja, y volver al grafo lleva a la nueva materia
 
 ### Requirement: Captura del plan y de las calificaciones
 

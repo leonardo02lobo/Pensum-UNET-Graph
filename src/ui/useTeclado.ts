@@ -11,6 +11,8 @@ interface Opciones {
   readonly seleccion: string | null
   readonly irA: (id: string) => void
   readonly limpiar: () => void
+  /** Lleva el foco al campo de búsqueda. */
+  readonly enfocarBusqueda?: () => void
 }
 
 /**
@@ -21,7 +23,13 @@ interface Opciones {
  * sus propias aristas: ← lo que hace falta antes, → lo que se desbloquea,
  * ↑ ↓ entre las alternativas cuando hay varias.
  */
-export function useTeclado({ grafo, seleccion, irA, limpiar }: Opciones) {
+export function useTeclado({
+  grafo,
+  seleccion,
+  irA,
+  limpiar,
+  enfocarBusqueda,
+}: Opciones) {
   useEffect(() => {
     const alPulsar = (e: KeyboardEvent) => {
       // No secuestrar el teclado mientras se escribe en la búsqueda.
@@ -37,6 +45,19 @@ export function useTeclado({ grafo, seleccion, irA, limpiar }: Opciones) {
 
       if (e.key === 'Escape') {
         limpiar()
+        return
+      }
+
+      // Atajo de búsqueda. Entra DESPUÉS de la comprobación de campo editable
+      // de arriba: si se saltara, escribir «/» dentro del editor de intentos o
+      // de un parcial de la calculadora secuestraría el foco a mitad de frase.
+      if (
+        enfocarBusqueda &&
+        ((e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) ||
+          (e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey)))
+      ) {
+        e.preventDefault()
+        enfocarBusqueda()
         return
       }
 
@@ -79,5 +100,5 @@ export function useTeclado({ grafo, seleccion, irA, limpiar }: Opciones) {
 
     window.addEventListener('keydown', alPulsar)
     return () => window.removeEventListener('keydown', alPulsar)
-  }, [grafo, seleccion, irA, limpiar])
+  }, [grafo, seleccion, irA, limpiar, enfocarBusqueda])
 }

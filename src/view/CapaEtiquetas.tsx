@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { Punto3D } from '../layout/orbital'
+import { SIN_PANEL, type FranjaPanel } from '../ui/panel'
 
 /**
  * Etiquetas como capa HTML proyectada sobre la escena, en vez de sprites 3D.
@@ -26,8 +27,10 @@ export interface ItemEtiqueta {
 interface Props {
   readonly obtenerCamara: () => THREE.Camera | undefined
   readonly items: readonly ItemEtiqueta[]
-  /** Coordenada X donde empieza el panel de detalle, para no quedar debajo. */
-  readonly bordeDerecho: number | null
+  /** Franja que ocupa el panel de detalle, para no quedar debajo. Es su
+   *  geometría REAL: en una ventana estrecha el panel mide menos que su ancho
+   *  nominal, y suprimir la franja nominal borraba etiquetas que sí se veían. */
+  readonly franja?: FranjaPanel
 }
 
 interface Colocada extends ItemEtiqueta {
@@ -39,14 +42,16 @@ interface Colocada extends ItemEtiqueta {
 const ALTO_LINEA = 17
 /** Ancho aproximado por carácter a 11px; basta para detectar solapes. */
 const ANCHO_CARACTER = 5.9
-const MARGEN_PANEL = 12
+/** Holgura entre una etiqueta y el borde del panel. No es el margen de
+ *  ventana del panel: es cuánto se aparta el texto de su canto. */
+const HOLGURA_PANEL = 12
 
 function proyectar(
   items: readonly ItemEtiqueta[],
   camara: THREE.Camera,
   ancho: number,
   alto: number,
-  bordeDerecho: number | null,
+  franja: FranjaPanel,
 ): Colocada[] {
   const v = new THREE.Vector3()
   const candidatos: Colocada[] = []
@@ -62,8 +67,10 @@ function proyectar(
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue
     if (x < 0 || x > ancho || y < 0 || y > alto) continue
     // Una materia que cae debajo del panel no se etiqueta: correrla mentiría
-    // sobre dónde está.
-    if (bordeDerecho !== null && x > bordeDerecho - MARGEN_PANEL) continue
+    // sobre dónde está. Con el panel como hoja lo que hay que esquivar es el
+    // borde inferior, no una franja lateral que ya no existe.
+    if (franja.bordeDerecho !== null && x > franja.bordeDerecho - HOLGURA_PANEL) continue
+    if (franja.bordeInferior !== null && y > franja.bordeInferior - HOLGURA_PANEL) continue
     candidatos.push({ ...it, x, y, ancho: it.texto.length * ANCHO_CARACTER })
   }
 
@@ -91,7 +98,7 @@ function proyectar(
   return colocadas
 }
 
-export function CapaEtiquetas({ obtenerCamara, items, bordeDerecho }: Props) {
+export function CapaEtiquetas({ obtenerCamara, items, franja = SIN_PANEL }: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
   const [colocadas, setColocadas] = useState<Colocada[]>([])
 
@@ -110,18 +117,18 @@ export function CapaEtiquetas({ obtenerCamara, items, bordeDerecho }: Props) {
       const ancho = el.clientWidth
       const alto = el.clientHeight
       // Reproyectar solo cuando la cámara o el encuadre cambian de verdad.
-      const firma = `${camara.matrixWorld.elements.join(',')}|${ancho}x${alto}`
+      const firma = `${camara.matrixWorld.elements.join(',')}|${ancho}x${alto}|${franja.bordeDerecho}|${franja.bordeInferior}`
       if (firma === firmaPrevia) return
       firmaPrevia = firma
 
-      setColocadas(proyectar(items, camara, ancho, alto, bordeDerecho))
+      setColocadas(proyectar(items, camara, ancho, alto, franja))
     }
 
     requestAnimationFrame(tick)
     return () => {
       vivo = false
     }
-  }, [items, obtenerCamara, bordeDerecho])
+  }, [items, obtenerCamara, franja])
 
   return (
     <div ref={contenedor} className="pointer-events-none absolute inset-0 overflow-hidden">

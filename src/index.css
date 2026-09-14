@@ -42,6 +42,14 @@
   /* Compuertas por créditos (D2): translúcido y desaturado. */
   --color-gate: #64748b;
 
+  /* Anillo de foco.
+     Un neutro claro y no un color de la paleta: `sky-300` tiene contraste 1,00
+     contra el amarillo de `matematica` —misma luminancia— y se perdería justo
+     donde hace falta. Este valor da 18,5:1 contra `--color-void` y 17,6:1
+     contra `--color-void-soft`, que son los dos fondos reales sobre los que
+     aparece. Todo control enfocable vive sobre una isla oscura del cromo. */
+  --color-focus: #f1f5f9;
+
   /* Aristas. */
   --color-edge-intra: #334155;
   --color-edge-cross: #64748b;
@@ -52,6 +60,53 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/*
+ * Foco visible, definido UNA vez.
+ *
+ * Antes había 7 apariciones de `focus:` en todo `src/`, las siete
+ * `focus:border` en campos de texto, y cero indicador en los ~40 botones:
+ * tabular por la leyenda, por los semestres o por el selector de nueve notas
+ * era navegar a ciegas. Es el mismo patrón que los tokens de color — una
+ * definición, muchos consumidores — y por la misma razón: añadir la regla a
+ * cuarenta botones garantiza que el número 41 se escriba sin ella.
+ *
+ * `:focus-visible` y no `:focus`: así el anillo aparece al tabular y no al
+ * clicar. Sin esa distinción cada clic deja un anillo, el ruido visual molesta,
+ * y el equipo acaba quitándolo — que es como se llega a no tener ninguno.
+ */
+:focus-visible {
+  /* Las longhands por separado, y no la abreviatura `outline`: con la
+     abreviatura el color acababa resolviéndose a `currentColor` —el anillo
+     tomaba el color del texto de cada control y se volvía gris sobre los
+     botones apagados, que es justo donde más falta hace. */
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--color-focus);
+  outline-offset: 2px;
+  border-radius: inherit;
+  /* Al instante. La utilidad `transition` de Tailwind incluye `outline-color`,
+     así que el anillo nacía del color del texto del control —gris apagado en
+     los botones secundarios— y tardaba 150 ms en leerse. Un indicador de foco
+     que hay que esperar a ver no cumple su función. */
+  transition-property: none;
+}
+
+/*
+ * Con movimiento reducido, el cromo llega a su estado final sin recorrido.
+ * No se desactiva el bloom: es un efecto estático, no movimiento, y apagarlo
+ * cambiaría la identidad de la escena sin resolver ninguna molestia.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 body {

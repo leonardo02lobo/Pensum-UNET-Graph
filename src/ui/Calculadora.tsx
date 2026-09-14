@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { Materia } from '../data/types'
 import {
   calificacionesDeLaEscala,
   notaDePorcentaje,
   porcentajeMinimoDeNota,
 } from '../data/tablaConversion'
-import { buscar, type PensumGraph } from '../model/graph'
+import type { PensumGraph } from '../model/graph'
 import type { Intento } from '../progreso/tipos'
 import {
   planSugerido,
@@ -19,6 +19,7 @@ import {
 import { evaluar, type Necesario } from '../evaluacion/definitiva'
 import { colorDeSector, leerTokens } from '../view/tokens'
 import { Conversor } from './Conversor'
+import { propsDelCampo, useComboMaterias } from './useComboMaterias'
 
 interface Props {
   readonly grafo: PensumGraph
@@ -48,45 +49,51 @@ function Selector({
   grafo: PensumGraph
   onElegir: (id: string) => void
 }) {
-  const [texto, setTexto] = useState('')
   const tokens = useMemo(() => leerTokens(), [])
-  const resultados = useMemo(() => buscar(grafo, texto).slice(0, 8), [grafo, texto])
+  // Misma pieza que el buscador del grafo: dos copias del mismo comportamiento
+  // acaban divergiendo.
+  const c = useComboMaterias(grafo, onElegir)
 
   return (
     <div className="relative">
       <input
-        type="search"
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
+        {...propsDelCampo(c)}
         placeholder="Buscar materia o código…"
-        className="w-full rounded-lg border border-hairline bg-void-soft/90 px-3 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-slate-500"
+        aria-label="Buscar la materia a calcular"
+        className="w-full rounded-lg border border-hairline bg-void-soft/90 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-slate-500"
       />
-      {texto.trim() !== '' && (
+
+      <p className="sr-only" role="status" aria-live="polite">
+        {c.anuncio}
+      </p>
+
+      {c.abierta && (
         <div className="absolute z-10 mt-1.5 w-full overflow-hidden rounded-lg border border-hairline bg-void-soft shadow-2xl">
-          {resultados.length === 0 ? (
+          {c.resultados.length === 0 ? (
             <p className="px-3 py-2.5 text-sm text-slate-500">Sin coincidencias.</p>
           ) : (
-            <ul>
-              {resultados.map((m) => (
-                <li key={m.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onElegir(m.id)
-                      setTexto('')
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-white/5"
-                  >
-                    <span
-                      aria-hidden
-                      className="size-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: colorDeSector(tokens, m.sector) }}
-                    />
-                    <span className="truncate text-sm text-slate-200">{m.nombre}</span>
-                    <span className="ml-auto shrink-0 text-xs text-slate-500">
-                      {m.uc} U.C.
-                    </span>
-                  </button>
+            <ul id={c.idLista} role="listbox" aria-label="Resultados de la búsqueda">
+              {c.resultados.map((m, i) => (
+                <li
+                  key={m.id}
+                  id={c.idOpcion(i)}
+                  role="option"
+                  aria-selected={i === c.activo}
+                  onMouseEnter={() => c.setActivo(i)}
+                  onClick={() => c.elegir(m.id)}
+                  className={`flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left transition ${
+                    i === c.activo ? 'bg-white/10' : ''
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: colorDeSector(tokens, m.sector) }}
+                  />
+                  <span className="truncate text-sm text-slate-200">{m.nombre}</span>
+                  <span className="ml-auto shrink-0 text-xs text-slate-500">
+                    {m.uc} U.C.
+                  </span>
                 </li>
               ))}
             </ul>
